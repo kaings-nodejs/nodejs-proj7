@@ -182,3 +182,29 @@ exports.postReset = (req, res, next) => {
         .catch(err => console.log(err));
     })
 }
+
+exports.getNewPassword = (req, res, next) => {
+    console.log('getNewPassword_resetToken..... ', req.params.resetToken);
+
+    const token = req.params.resetToken;
+
+    User.findOne({ 
+        resetToken: token, 
+        resetTokenExpiration: {$gt: Date.now()}     // to filter out resetTokenExpiration is greater than ($gt) Date.now() (this is in milisecond) to check the expiration of the token
+    })
+    .then(user => {
+        console.log('getNewPassword_user..... ', user);
+
+        if(!user) {
+            req.flash('error', 'Reset Token is Invalid or Expired!');
+            return res.redirect('/reset');
+        }
+
+        res.render('auth/new-password', {
+            path: '/new-password',
+            pageTitle: 'New Password',
+            errMessage: req.flash('error')
+        });
+    })
+    .catch(err => console.log(err));
+};
