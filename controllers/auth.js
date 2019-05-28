@@ -1,5 +1,15 @@
 const User = require('../models/user');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
+const sgTransport = require('nodemailer-sendgrid-transport');
+
+const mailer = nodemailer.createTransport(sgTransport({
+    auth: {
+        api_key: '' // fill in SendGrid API_KEY
+    }
+}));
+
+const crypto = require('crypto');
 
 exports.getAuth = (req, res, next) => {
     console.log('getAuth_session..... ', req.session); // get session
@@ -87,7 +97,30 @@ exports.postSignup = (req, res, next) => {
 
         if(result) {
             res.redirect('/login');
+
+            const mailDetails = {
+                to: email,
+                from: 'dummy@test.com',
+                subject: 'Hi there',
+                text: 'Awesome sauce',
+                html: '<b>Awesome sauce</b>'
+            };
+
+            /* Note:
+            It is better NOT to wait sending email process to finish before redirecting (make the 2 process asynchronous as this one is better)
+            the reason is if emails to be sent is alot, it will be long waiting before redirecting
+             */
+
+            //this code works as well but without returning promise
+            // mailer.sendMail(mailDetails, (err, res) => {
+            //     console.log('mailer.sendMail..... ', res, '\n', err);
+            // });
+
+            return mailer.sendMail(mailDetails);    // the one with returning promise
         }
+    })
+    .then(sendMail_result => {
+        console.log('postSignup_sendMail_result..... ', sendMail_result);
     })
     .catch(err => {console.log(err)});
 };
@@ -106,3 +139,46 @@ exports.getReset = (req, res, next) => {
         errMessage: req.flash('error')
     });
 };
+
+exports.postReset = (req, res, next) => {
+    crypto.randomBytes(32, (err, buffer) => {
+        if (err) {
+            console.log('postReset_err..... ', err);
+            return res.redirect('/reset');
+        }
+
+        const token = buffer.toString('hex');
+        User.findOne({email: req.body.email})
+        .then(user => {
+            if(!user) {
+                req.flash('error', 'No Account with that Email Found!');
+                return res.redirect('/reset');
+            }
+
+            user.resetToken = token;
+            user.resetTokenExpiration = Date.now() + 3600000;
+            return user.save();
+        })
+        .then(result => {
+            console.log('postReset_result..... ', result);
+
+            res.redirect('/login');
+            
+            mailer.sendMail(
+                {
+                    to: req.body.email,
+                    from: 'dummy@test.com',
+                    subject: 'Password Reset',
+                    html: `
+                        <p>You Requested a Password Reset</p>
+                        <p>Click this <a href="http://localhost:3000/reset/${token}">link</a> to set new password.</p>
+                    `
+                },
+                (err, res) => {
+                    console.log('postReset_sendMail..... err: ', err, '\nres: ', res);
+                }
+            );
+        })
+        .catch(err => console.log(err));
+    })
+}

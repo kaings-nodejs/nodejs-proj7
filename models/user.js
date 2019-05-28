@@ -16,7 +16,9 @@ const userSchema = new Schema({
             productId: { type: Schema.Types.ObjectId , ref: 'Product', required: true },
             quantity: { type: Number, required: true }
         }]
-    }
+    },
+    resetToken: String,     // not really required, it is optional (only for those who wants to reset password)
+    resetTokenExpiration: String    // not really required, it is optional (only for those who wants to reset password)
 });
 
 userSchema.methods.addToCart = function(product) {
