@@ -69,6 +69,11 @@ exports.postEditProduct = (req, res, next) => {
   Product.findById(prodId)
   .then(product => {
     console.log('postEditProduct_product..... ', product);
+
+    if(product.userId.toString() !== req.user._id.toString()) {
+      return res.redirect('/');
+    }
+
     product.title = updatedTitle;
     product.price = updatedPrice;
     product.imageUrl = updatedImageUrl;
@@ -84,7 +89,7 @@ exports.postEditProduct = (req, res, next) => {
 
 exports.getProducts = (req, res, next) => {
   Product
-  .find()
+  .find({userId: req.session.user._id})   // req.session.user contains user object data, req.user contains user mongoose object (incl. mongoose command)
   //.select('title price -_id')   // function available after find(), to select only certain documents from the collection. In example, show only 'title', 'price', & DONOT show '_id' (using '-' infront)
   //.populate('userId')   // populate the related 'User' document (set by using 'ref' in model schema) into 'userId' document/path
   //.populate('userId', 'username')   // populate the related 'User' document (set by using 'ref' in model schema) into 'userId' document/path. But, only show 'username' & '_id' ('_id' will always show unless excluded)
@@ -106,7 +111,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
-  Product.findByIdAndRemove(prodId)
+  Product.deleteOne({_id: prodId, userId: req.user._id})
   .then(result => {
     console.log('postDeleteProduct_result..... ', result);
     res.redirect('/admin/products');
